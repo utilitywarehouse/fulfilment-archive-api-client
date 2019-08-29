@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"math"
-	"sync"
 	"time"
 
 	"github.com/utilitywarehouse/finance-fulfilment-archive-api-cli/internal/ffaac"
@@ -95,8 +94,10 @@ func main() {
 		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
 		doneCh := make(chan bool)
+
+		filesProcessor := ffaac.NewFileProcessor(faaClient, *basedir, *recursive, *workers)
 		go func() {
-			processFiles(ctx, faaClient, *basedir, *recursive, *workers)
+			filesProcessor.ProcessFiles(ctx)
 			doneCh <- true
 		}()
 
@@ -112,38 +113,6 @@ func main() {
 	if err := app.Run(os.Args); err != nil {
 		log.WithError(err).Panic("unable to run app")
 	}
-}
-
-func processFiles(ctx context.Context, faaClient bfaa.BillFulfilmentArchiveAPIClient, basedir string, recursive bool, workers int) {
-	fileCh := make(chan string, 100)
-	errCh := make(chan error, 100)
-	defer close(errCh)
-
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-
-	ff := ffaac.NewFileFinder(basedir, fileCh, recursive, errCh)
-	go func() {
-		ff.Run(ctx)
-		wg.Done()
-	}()
-
-	wg.Add(workers)
-	for i := 0; i < workers; i++ {
-		w := ffaac.NewFileSaver(faaClient, fileCh, errCh)
-		go func() {
-			w.Run(ctx)
-			wg.Done()
-		}()
-	}
-
-	go func() {
-		for err := range errCh {
-			log.Error(err)
-		}
-	}()
-
-	wg.Wait()
 }
 
 func configureLogger(level, format string) {

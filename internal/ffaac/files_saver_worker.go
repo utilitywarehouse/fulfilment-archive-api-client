@@ -10,34 +10,26 @@ import (
 	"github.com/utilitywarehouse/finance-fulfilment-archive-api-cli/internal/pb/bfaa"
 )
 
-type FileSaver struct {
+type fileSaverWorker struct {
 	faaClient bfaa.BillFulfilmentArchiveAPIClient
 	fileChan  <-chan string
 	errCh     chan<- error
 }
 
-func NewFileSaver(faaClient bfaa.BillFulfilmentArchiveAPIClient, fileChan <-chan string, errCh chan<- error) *FileSaver {
-	return &FileSaver{
-		faaClient: faaClient,
-		fileChan:  fileChan,
-		errCh:     errCh,
-	}
-}
-
-func (f *FileSaver) Run(ctx context.Context) {
+func (f *fileSaverWorker) Run(ctx context.Context) {
 	select {
 	case <-ctx.Done():
 		return
 	case fn, ok := <-f.fileChan:
 		if ok {
-			if err := f.saveFile(ctx, fn); err != nil {
+			if err := f.sendFileToArchiveAPI(ctx, fn); err != nil {
 				f.errCh <- err
 			}
 		}
 	}
 }
 
-func (f *FileSaver) saveFile(ctx context.Context, fileName string) error {
+func (f *fileSaverWorker) sendFileToArchiveAPI(ctx context.Context, fileName string) error {
 	file, err := os.Open(fileName)
 	if err != nil {
 		return errors.Wrapf(err, "failed to open file %s", fileName)

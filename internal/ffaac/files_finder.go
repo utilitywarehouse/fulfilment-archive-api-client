@@ -8,24 +8,20 @@ import (
 	"github.com/pkg/errors"
 )
 
-type FileFinder struct {
+type filesFinder struct {
 	basedir   string
-	outChan   chan<- string
+	filesCh   chan<- string
 	errCh     chan<- error
 	recursive bool
 }
 
-func NewFileFinder(basedir string, fileChan chan<- string, recursive bool, errCh chan<- error) *FileFinder {
-	return &FileFinder{basedir: basedir, outChan: fileChan, recursive: recursive, errCh: errCh}
-}
-
-func (f *FileFinder) Run(ctx context.Context) {
-	defer close(f.outChan)
+func (f *filesFinder) Run(ctx context.Context) {
+	defer close(f.filesCh)
 
 	f.findRecursive(ctx, f.basedir)
 }
 
-func (f *FileFinder) findRecursive(ctx context.Context, dir string) {
+func (f *filesFinder) findRecursive(ctx context.Context, dir string) {
 	files, err := ioutil.ReadDir(dir)
 	if err != nil {
 		f.errCh <- errors.Wrapf(err, "Error listing files in dir %s", dir)
@@ -37,6 +33,6 @@ func (f *FileFinder) findRecursive(ctx context.Context, dir string) {
 		if file.IsDir() && f.recursive {
 			f.findRecursive(ctx, fullFn)
 		}
-		f.outChan <- fullFn
+		f.filesCh <- fullFn
 	}
 }
