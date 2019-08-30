@@ -75,6 +75,12 @@ func main() {
 		Desc:   "The base directory where to upload all the files from",
 		EnvVar: "BASEDIR",
 	})
+	fileExtensions := app.String(cli.StringOpt{
+		Name:   "file-extensions",
+		Desc:   "The list of file extensions to process",
+		EnvVar: "FILE_EXTENSIONS",
+		Value:  "pdf,csv",
+	})
 
 	app.Action = func() {
 		configureLogger(*logLevel, *logFormat)
@@ -95,7 +101,7 @@ func main() {
 
 		doneCh := make(chan bool)
 
-		filesProcessor := ffaac.NewFileProcessor(faaClient, *basedir, *recursive, *workers)
+		filesProcessor := ffaac.NewFileProcessor(faaClient, *basedir, *recursive, *workers, strings.Split(*fileExtensions, ","))
 		go func() {
 			filesProcessor.ProcessFiles(ctx)
 			doneCh <- true

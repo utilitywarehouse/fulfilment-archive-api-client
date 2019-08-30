@@ -13,14 +13,16 @@ type FilesProcessor struct {
 	basedir          string
 	recursive        bool
 	workers          int
+	fileExtensions   []string
 }
 
-func NewFileProcessor(faaClient bfaa.BillFulfilmentArchiveAPIClient, basedir string, recursive bool, workers int) *FilesProcessor {
+func NewFileProcessor(faaClient bfaa.BillFulfilmentArchiveAPIClient, basedir string, recursive bool, workers int, fileExtensions []string) *FilesProcessor {
 	return &FilesProcessor{
 		archiveAPIClient: faaClient,
 		basedir:          basedir,
 		recursive:        recursive,
 		workers:          workers,
+		fileExtensions:   fileExtensions,
 	}
 }
 
@@ -32,7 +34,7 @@ func (p *FilesProcessor) ProcessFiles(ctx context.Context) {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 
-	ff := &filesFinder{basedir: p.basedir, filesCh: fileCh, recursive: p.recursive, errCh: errCh}
+	ff := &filesFinder{basedir: p.basedir, filesCh: fileCh, recursive: p.recursive, errCh: errCh, fileExtensions: p.fileExtensions}
 	go func() {
 		ff.Run(ctx)
 		wg.Done()

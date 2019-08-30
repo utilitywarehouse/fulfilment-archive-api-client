@@ -29,7 +29,7 @@ type processorTestInstances struct {
 	processor *ffaac.FilesProcessor
 }
 
-func initProcessorMocks(t *testing.T, recursive bool) processorTestInstances {
+func initProcessorMocks(t *testing.T, recursive bool, fileExtensions ...string) processorTestInstances {
 	ctrl := gomock.NewController(t)
 	ti := processorTestInstances{
 		ctrl:                 ctrl,
@@ -40,7 +40,7 @@ func initProcessorMocks(t *testing.T, recursive bool) processorTestInstances {
 
 	ti.basedir = rootPath
 
-	ti.processor = ffaac.NewFileProcessor(ti.mockArchiveAPIClient, ti.basedir, recursive, workers)
+	ti.processor = ffaac.NewFileProcessor(ti.mockArchiveAPIClient, ti.basedir, recursive, workers, fileExtensions)
 	return ti
 }
 
@@ -60,7 +60,7 @@ func TestProcessEmptyDir(t *testing.T) {
 }
 
 func TestProcessSimpleDir(t *testing.T) {
-	ti := initProcessorMocks(t, true)
+	ti := initProcessorMocks(t, true, "pdf")
 	defer ti.finish()
 
 	fileNames := []string{"one.pdf", "two.pdf"}
@@ -74,7 +74,7 @@ func TestProcessSimpleDir(t *testing.T) {
 }
 
 func TestProcessContinueOnError(t *testing.T) {
-	ti := initProcessorMocks(t, true)
+	ti := initProcessorMocks(t, true, "pdf", "csv")
 	defer ti.finish()
 
 	fileNames := []string{"one.pdf", "two.pdf", "three.csv"}
@@ -91,7 +91,7 @@ func TestProcessContinueOnError(t *testing.T) {
 }
 
 func TestProcessWithChildDirsRecursive(t *testing.T) {
-	ti := initProcessorMocks(t, true)
+	ti := initProcessorMocks(t, true, "pdf")
 	defer ti.finish()
 
 	fileNames := []string{"one.pdf", "two.pdf",
@@ -107,7 +107,7 @@ func TestProcessWithChildDirsRecursive(t *testing.T) {
 }
 
 func TestProcessManyFilesRecursive(t *testing.T) {
-	ti := initProcessorMocks(t, true)
+	ti := initProcessorMocks(t, true, "pdf")
 	defer ti.finish()
 
 	var allFileNames []string
@@ -134,7 +134,7 @@ func TestProcessManyFilesRecursive(t *testing.T) {
 }
 
 func TestProcessWithChildDirsNonRecursive(t *testing.T) {
-	ti := initProcessorMocks(t, false)
+	ti := initProcessorMocks(t, false, "pdf")
 	defer ti.finish()
 
 	baseFileNames := []string{"one.pdf", "two.pdf"}
@@ -145,6 +145,25 @@ func TestProcessWithChildDirsNonRecursive(t *testing.T) {
 	ti.createTestFiles(t, allFiles...)
 
 	for _, fileName := range baseFileNames {
+		ti.mockArchiveAPIClient.EXPECT().SaveBillFulfilmentArchive(gomock.Any(), getExpectedSaveRequest(fileName)).Return(nil, nil).Times(1)
+	}
+
+	ti.processor.ProcessFiles(context.Background())
+}
+
+func TestProcessSkipNotIncludedFiles(t *testing.T) {
+	ti := initProcessorMocks(t, true, "csv")
+	defer ti.finish()
+
+	includedFiles := []string{"one.csv", filepath.Join("fold1", "thee.csv")}
+	excludedFiles := []string{
+		"two.pdf",
+		filepath.Join("fold1", "thee.pdf"),
+		filepath.Join("fold1", "fold2", "four.pdf")}
+	allFiles := append(includedFiles, excludedFiles...)
+	ti.createTestFiles(t, allFiles...)
+
+	for _, fileName := range includedFiles {
 		ti.mockArchiveAPIClient.EXPECT().SaveBillFulfilmentArchive(gomock.Any(), getExpectedSaveRequest(fileName)).Return(nil, nil).Times(1)
 	}
 
