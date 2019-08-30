@@ -9,18 +9,18 @@ import (
 )
 
 type FilesProcessor struct {
-	faaClient bfaa.BillFulfilmentArchiveAPIClient
-	basedir   string
-	recursive bool
-	workers   int
+	archiveAPIClient bfaa.BillFulfilmentArchiveAPIClient
+	basedir          string
+	recursive        bool
+	workers          int
 }
 
 func NewFileProcessor(faaClient bfaa.BillFulfilmentArchiveAPIClient, basedir string, recursive bool, workers int) *FilesProcessor {
 	return &FilesProcessor{
-		faaClient: faaClient,
-		basedir:   basedir,
-		recursive: recursive,
-		workers:   workers,
+		archiveAPIClient: faaClient,
+		basedir:          basedir,
+		recursive:        recursive,
+		workers:          workers,
 	}
 }
 
@@ -41,7 +41,7 @@ func (p *FilesProcessor) ProcessFiles(ctx context.Context) {
 	wg.Add(p.workers)
 	for i := 0; i < p.workers; i++ {
 		w := &fileSaverWorker{
-			faaClient: p.faaClient,
+			faaClient: p.archiveAPIClient,
 			fileChan:  fileCh,
 			errCh:     errCh,
 		}
