@@ -44,6 +44,7 @@ func (p *FilesProcessor) ProcessFiles(ctx context.Context) {
 			faaClient: p.archiveAPIClient,
 			fileChan:  fileCh,
 			errCh:     errCh,
+			basedir:   p.basedir,
 		}
 		go func() {
 			w.Run(ctx)

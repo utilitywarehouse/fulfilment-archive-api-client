@@ -4,9 +4,9 @@ import (
 	"context"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 
 	"github.com/pkg/errors"
-
 	"github.com/utilitywarehouse/finance-fulfilment-archive-api-cli/internal/pb/bfaa"
 )
 
@@ -14,23 +14,28 @@ type fileSaverWorker struct {
 	faaClient bfaa.BillFulfilmentArchiveAPIClient
 	fileChan  <-chan string
 	errCh     chan<- error
+	basedir   string
 }
 
 func (f *fileSaverWorker) Run(ctx context.Context) {
-	select {
-	case <-ctx.Done():
-		return
-	case fn, ok := <-f.fileChan:
-		if ok {
-			if err := f.sendFileToArchiveAPI(ctx, fn); err != nil {
-				f.errCh <- err
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case fn, ok := <-f.fileChan:
+			if ok {
+				if err := f.sendFileToArchiveAPI(ctx, fn); err != nil {
+					f.errCh <- err
+				}
+			} else {
+				return
 			}
 		}
 	}
 }
 
 func (f *fileSaverWorker) sendFileToArchiveAPI(ctx context.Context, fileName string) error {
-	file, err := os.Open(fileName)
+	file, err := os.Open(filepath.Join(f.basedir, fileName))
 	if err != nil {
 		return errors.Wrapf(err, "failed to open file %s", fileName)
 	}

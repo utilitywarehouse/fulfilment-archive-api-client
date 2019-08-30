@@ -33,6 +33,6 @@ func (f *filesFinder) findRecursive(ctx context.Context, dir string) {
 		if file.IsDir() && f.recursive {
 			f.findRecursive(ctx, fullFn)
 		}
-		f.filesCh <- fullFn
+		f.filesCh <- file.Name()
 	}
 }

@@ -51,12 +51,15 @@ func (ti *processorTestInstances) finish() {
 
 func TestSimpleDir(t *testing.T) {
 	ti := initProcessorMocks(t, true)
+	defer ti.finish()
+
 	fileNames := []string{"one.pdf", "two.pdf"}
 	ti.createTestFiles(t, fileNames...)
 
 	ctx := context.Background()
+
 	for _, fileName := range fileNames {
-		ti.mockArchiveAPIClient.EXPECT().SaveBillFulfilmentArchive(ctx, getExpectedSaveRequest(fileName))
+		ti.mockArchiveAPIClient.EXPECT().SaveBillFulfilmentArchive(gomock.Any(), getExpectedSaveRequest(fileName)).Return(nil, nil).Times(1)
 	}
 
 	ti.processor.ProcessFiles(ctx)
