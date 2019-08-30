@@ -49,6 +49,14 @@ func (ti *processorTestInstances) finish() {
 	}
 }
 
+func TestEmptyDir(t *testing.T) {
+	ti := initProcessorMocks(t, true)
+	defer ti.finish()
+
+	ti.mockArchiveAPIClient.EXPECT().SaveBillFulfilmentArchive(gomock.Any(), gomock.Any()).Times(0)
+	ti.processor.ProcessFiles(context.Background())
+}
+
 func TestSimpleDir(t *testing.T) {
 	ti := initProcessorMocks(t, true)
 	defer ti.finish()
@@ -56,13 +64,11 @@ func TestSimpleDir(t *testing.T) {
 	fileNames := []string{"one.pdf", "two.pdf"}
 	ti.createTestFiles(t, fileNames...)
 
-	ctx := context.Background()
-
 	for _, fileName := range fileNames {
 		ti.mockArchiveAPIClient.EXPECT().SaveBillFulfilmentArchive(gomock.Any(), getExpectedSaveRequest(fileName)).Return(nil, nil).Times(1)
 	}
 
-	ti.processor.ProcessFiles(ctx)
+	ti.processor.ProcessFiles(context.Background())
 }
 
 func getExpectedSaveRequest(fileName string) *bfaa.SaveBillFulfilmentArchiveRequest {
