@@ -18,10 +18,10 @@ type filesFinder struct {
 func (f *filesFinder) Run(ctx context.Context) {
 	defer close(f.filesCh)
 
-	f.findRecursive(ctx, f.basedir)
+	f.findRecursive(ctx, f.basedir, "")
 }
 
-func (f *filesFinder) findRecursive(ctx context.Context, dir string) {
+func (f *filesFinder) findRecursive(ctx context.Context, dir string, baseRelativeDir string) {
 	files, err := ioutil.ReadDir(dir)
 	if err != nil {
 		f.errCh <- errors.Wrapf(err, "Error listing files in dir %s", dir)
@@ -30,9 +30,11 @@ func (f *filesFinder) findRecursive(ctx context.Context, dir string) {
 
 	for _, file := range files {
 		fullFn := filepath.Join(dir, file.Name())
+		baseRelativeName := filepath.Join(baseRelativeDir, file.Name())
 		if file.IsDir() && f.recursive {
-			f.findRecursive(ctx, fullFn)
+			f.findRecursive(ctx, fullFn, baseRelativeName)
+		} else {
+			f.filesCh <- baseRelativeName
 		}
-		f.filesCh <- file.Name()
 	}
 }

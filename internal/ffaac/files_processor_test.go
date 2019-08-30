@@ -49,7 +49,7 @@ func (ti *processorTestInstances) finish() {
 	}
 }
 
-func TestEmptyDir(t *testing.T) {
+func TestProcessEmptyDir(t *testing.T) {
 	ti := initProcessorMocks(t, true)
 	defer ti.finish()
 
@@ -57,11 +57,27 @@ func TestEmptyDir(t *testing.T) {
 	ti.processor.ProcessFiles(context.Background())
 }
 
-func TestSimpleDir(t *testing.T) {
+func TestProcessSimpleDir(t *testing.T) {
 	ti := initProcessorMocks(t, true)
 	defer ti.finish()
 
 	fileNames := []string{"one.pdf", "two.pdf"}
+	ti.createTestFiles(t, fileNames...)
+
+	for _, fileName := range fileNames {
+		ti.mockArchiveAPIClient.EXPECT().SaveBillFulfilmentArchive(gomock.Any(), getExpectedSaveRequest(fileName)).Return(nil, nil).Times(1)
+	}
+
+	ti.processor.ProcessFiles(context.Background())
+}
+
+func TestProcessWithChildDirsRecursive(t *testing.T) {
+	ti := initProcessorMocks(t, true)
+	defer ti.finish()
+
+	fileNames := []string{"one.pdf", "two.pdf",
+		filepath.Join("fold1", "thee.pdf"),
+		filepath.Join("fold1", "fold2", "four.pdf")}
 	ti.createTestFiles(t, fileNames...)
 
 	for _, fileName := range fileNames {
@@ -81,7 +97,11 @@ func getExpectedSaveRequest(fileName string) *bfaa.SaveBillFulfilmentArchiveRequ
 func (ti *processorTestInstances) createTestFiles(t *testing.T, files ...string) {
 	for _, fileName := range files {
 		fullFn := filepath.Join(ti.basedir, fileName)
-		err := ioutil.WriteFile(fullFn, []byte(fileName), 0666)
+		fileDir := filepath.Dir(fullFn)
+		err := os.MkdirAll(fileDir, 0777)
+		require.NoError(t, err)
+
+		err = ioutil.WriteFile(fullFn, []byte(fileName), 0666)
 		require.NoError(t, err)
 	}
 }
