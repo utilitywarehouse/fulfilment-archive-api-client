@@ -2,6 +2,7 @@ package ffaac_test
 
 import (
 	"context"
+	"errors"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -67,6 +68,23 @@ func TestProcessSimpleDir(t *testing.T) {
 	for _, fileName := range fileNames {
 		ti.mockArchiveAPIClient.EXPECT().SaveBillFulfilmentArchive(gomock.Any(), getExpectedSaveRequest(fileName)).Return(nil, nil).Times(1)
 	}
+
+	ti.processor.ProcessFiles(context.Background())
+}
+
+func TestProcessContinueOnError(t *testing.T) {
+	ti := initProcessorMocks(t, true)
+	defer ti.finish()
+
+	fileNames := []string{"one.pdf", "two.pdf", "three.csv"}
+	ti.createTestFiles(t, fileNames...)
+
+	err := errors.New("dummy error")
+	//	error on the first two files
+	ti.mockArchiveAPIClient.EXPECT().SaveBillFulfilmentArchive(gomock.Any(), getExpectedSaveRequest("one.pdf")).Return(nil, err).Times(1)
+	ti.mockArchiveAPIClient.EXPECT().SaveBillFulfilmentArchive(gomock.Any(), getExpectedSaveRequest("two.pdf")).Return(nil, err).Times(1)
+
+	ti.mockArchiveAPIClient.EXPECT().SaveBillFulfilmentArchive(gomock.Any(), getExpectedSaveRequest("three.csv")).Return(nil, nil).Times(1)
 
 	ti.processor.ProcessFiles(context.Background())
 }

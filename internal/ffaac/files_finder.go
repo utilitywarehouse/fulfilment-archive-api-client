@@ -31,8 +31,10 @@ func (f *filesFinder) findRecursive(ctx context.Context, dir string, baseRelativ
 	for _, file := range files {
 		fullFn := filepath.Join(dir, file.Name())
 		baseRelativeName := filepath.Join(baseRelativeDir, file.Name())
-		if file.IsDir() && f.recursive {
-			f.findRecursive(ctx, fullFn, baseRelativeName)
+		if file.IsDir() {
+			if f.recursive {
+				f.findRecursive(ctx, fullFn, baseRelativeName)
+			}
 		} else {
 			f.filesCh <- baseRelativeName
 		}
