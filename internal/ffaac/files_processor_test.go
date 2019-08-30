@@ -87,6 +87,24 @@ func TestProcessWithChildDirsRecursive(t *testing.T) {
 	ti.processor.ProcessFiles(context.Background())
 }
 
+func TestProcessWithChildDirsNonRecursive(t *testing.T) {
+	ti := initProcessorMocks(t, false)
+	defer ti.finish()
+
+	baseFileNames := []string{"one.pdf", "two.pdf"}
+	childFileNames := []string{
+		filepath.Join("fold1", "thee.pdf"),
+		filepath.Join("fold1", "fold2", "four.pdf")}
+	allFiles := append(baseFileNames, childFileNames...)
+	ti.createTestFiles(t, allFiles...)
+
+	for _, fileName := range baseFileNames {
+		ti.mockArchiveAPIClient.EXPECT().SaveBillFulfilmentArchive(gomock.Any(), getExpectedSaveRequest(fileName)).Return(nil, nil).Times(1)
+	}
+
+	ti.processor.ProcessFiles(context.Background())
+}
+
 func getExpectedSaveRequest(fileName string) *bfaa.SaveBillFulfilmentArchiveRequest {
 	return &bfaa.SaveBillFulfilmentArchiveRequest{
 		Id:      fileName,
