@@ -1,0 +1,17 @@
+version: 2
+jobs:
+  build:
+    working_directory: /go/src/github.com/utilitywarehouse/app
+    docker:
+      - image: circleci/golang:1
+    steps:
+      - checkout
+      - run: mv /go/src/github.com/utilitywarehouse/app /go/src/github.com/utilitywarehouse/$CIRCLE_PROJECT_REPONAME
+      - run: cd ../$CIRCLE_PROJECT_REPONAME && make install
+      - run: cd ../$CIRCLE_PROJECT_REPONAME && make lint test
+
+workflows:
+  version: 2
+  development:
+    jobs:
+      - build:
