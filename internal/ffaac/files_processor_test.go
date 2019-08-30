@@ -3,6 +3,7 @@ package ffaac_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -99,6 +100,33 @@ func TestProcessWithChildDirsRecursive(t *testing.T) {
 	ti.createTestFiles(t, fileNames...)
 
 	for _, fileName := range fileNames {
+		ti.mockArchiveAPIClient.EXPECT().SaveBillFulfilmentArchive(gomock.Any(), getExpectedSaveRequest(fileName)).Return(nil, nil).Times(1)
+	}
+
+	ti.processor.ProcessFiles(context.Background())
+}
+
+func TestProcessManyFilesRecursive(t *testing.T) {
+	ti := initProcessorMocks(t, true)
+	defer ti.finish()
+
+	var allFileNames []string
+	for i := 0; i < 500; i++ {
+		allFileNames = append(allFileNames, fmt.Sprintf("file%d.pdf", i))
+	}
+	for i := 0; i < 500; i++ {
+		allFileNames = append(allFileNames, filepath.Join("fold1", fmt.Sprintf("file%d.pdf", i)))
+	}
+	for i := 0; i < 500; i++ {
+		allFileNames = append(allFileNames, filepath.Join("fold1", "fold2", fmt.Sprintf("file%d.pdf", i)))
+	}
+	for i := 0; i < 500; i++ {
+		allFileNames = append(allFileNames, filepath.Join("fold1", "fold3", fmt.Sprintf("file%d.pdf", i)))
+	}
+
+	ti.createTestFiles(t, allFileNames...)
+
+	for _, fileName := range allFileNames {
 		ti.mockArchiveAPIClient.EXPECT().SaveBillFulfilmentArchive(gomock.Any(), getExpectedSaveRequest(fileName)).Return(nil, nil).Times(1)
 	}
 
