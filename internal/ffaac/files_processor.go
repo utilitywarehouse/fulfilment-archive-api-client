@@ -30,13 +30,11 @@ func (p *FilesProcessor) ProcessFiles(ctx context.Context) {
 	logrus.Infof("Starting processing files in %s. Recursive: %v. Looking for files with extensions: %v", p.basedir, p.recursive, p.fileExtensions)
 
 	fileCh := make(chan string, 100)
-	errCh := make(chan error, 100)
-	defer close(errCh)
 
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 
-	ff := &filesFinder{basedir: p.basedir, filesCh: fileCh, recursive: p.recursive, errCh: errCh, fileExtensions: p.fileExtensions}
+	ff := &filesFinder{basedir: p.basedir, filesCh: fileCh, recursive: p.recursive, fileExtensions: p.fileExtensions}
 	go func() {
 		ff.Run(ctx)
 		wg.Done()
@@ -47,7 +45,6 @@ func (p *FilesProcessor) ProcessFiles(ctx context.Context) {
 		w := &fileSaverWorker{
 			faaClient: p.archiveAPIClient,
 			fileChan:  fileCh,
-			errCh:     errCh,
 			basedir:   p.basedir,
 		}
 		go func() {
@@ -55,12 +52,6 @@ func (p *FilesProcessor) ProcessFiles(ctx context.Context) {
 			wg.Done()
 		}()
 	}
-
-	go func() {
-		for err := range errCh {
-			logrus.Error(err)
-		}
-	}()
 
 	wg.Wait()
 	logrus.Infof("Processing ended")

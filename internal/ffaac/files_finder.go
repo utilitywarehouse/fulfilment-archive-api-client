@@ -6,13 +6,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 type filesFinder struct {
 	basedir        string
 	filesCh        chan<- string
-	errCh          chan<- error
 	recursive      bool
 	fileExtensions []string
 }
@@ -26,7 +25,7 @@ func (f *filesFinder) Run(ctx context.Context) {
 func (f *filesFinder) findRecursive(ctx context.Context, dir string, baseRelativeDir string) {
 	files, err := ioutil.ReadDir(dir)
 	if err != nil {
-		f.errCh <- errors.Wrapf(err, "Error listing files in dir %s", dir)
+		logrus.WithError(err).Errorf("Error listing files in dir %s", dir)
 		return
 	}
 

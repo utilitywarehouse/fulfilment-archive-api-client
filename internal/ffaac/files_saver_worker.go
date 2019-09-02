@@ -15,7 +15,6 @@ import (
 type fileSaverWorker struct {
 	faaClient bfaa.BillFulfilmentArchiveAPIClient
 	fileChan  <-chan string
-	errCh     chan<- error
 	basedir   string
 }
 
@@ -27,7 +26,7 @@ func (f *fileSaverWorker) Run(ctx context.Context) {
 		case fn, ok := <-f.fileChan:
 			if ok {
 				if err := f.sendFileToArchiveAPI(ctx, fn); err != nil {
-					f.errCh <- err
+					logrus.Error(err)
 				}
 			} else {
 				return
