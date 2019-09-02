@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/pkg/errors"
 	"github.com/utilitywarehouse/finance-fulfilment-archive-api-cli/internal/pb/bfaa"
 )
@@ -35,6 +37,7 @@ func (f *fileSaverWorker) Run(ctx context.Context) {
 }
 
 func (f *fileSaverWorker) sendFileToArchiveAPI(ctx context.Context, fileName string) error {
+	logrus.Infof("Processing file %s", fileName)
 	file, err := os.Open(filepath.Join(f.basedir, fileName))
 	if err != nil {
 		return errors.Wrapf(err, "failed to open file %s", fileName)

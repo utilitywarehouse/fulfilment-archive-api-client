@@ -27,6 +27,8 @@ func NewFileProcessor(faaClient bfaa.BillFulfilmentArchiveAPIClient, basedir str
 }
 
 func (p *FilesProcessor) ProcessFiles(ctx context.Context) {
+	logrus.Infof("Starting processing files in %s. Recursive: %v. Looking for files with extensions: %v", p.basedir, p.recursive, p.fileExtensions)
+
 	fileCh := make(chan string, 100)
 	errCh := make(chan error, 100)
 	defer close(errCh)
@@ -61,4 +63,5 @@ func (p *FilesProcessor) ProcessFiles(ctx context.Context) {
 	}()
 
 	wg.Wait()
+	logrus.Infof("Processing ended")
 }

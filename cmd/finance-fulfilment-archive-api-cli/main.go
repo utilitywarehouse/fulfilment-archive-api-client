@@ -30,53 +30,54 @@ func main() {
 	app := cli.App(appName, appDesc)
 
 	fulfilmentArchAPIAddr := app.String(cli.StringOpt{
-		Name:   "fulfilment-archive-api-address",
+		Name:   "a fulfilment-archive-api-address",
 		Desc:   "The address of fulfilment-archive-api gRPC service",
 		EnvVar: "FULFILMENT_ARCHIVE_API_ADDRESS",
 		Value:  "finance-fulfilment-archive-api:8090",
 	})
 	fulfilmentArchAPIgrpcLB := app.String(cli.StringOpt{
-		Name:   "fulfilment-archive-api-grpc-balancer",
+		Name:   "b fulfilment-archive-api-grpc-balancer",
 		Desc:   "GRPC load balancer name for fulfilment archive API. Options: pick_first,round_robin,xds,grpclb",
 		EnvVar: "FULFILMENT_ARCHIVE_API_GRPC_BALANCER",
 		Value:  "round_robin",
 	})
 
 	logLevel := app.String(cli.StringOpt{
-		Name:   "log-level",
+		Name:   "l log-level",
 		Desc:   "log level [debug|info|warn|error]",
 		EnvVar: "LOG_LEVEL",
 		Value:  "info",
 	})
 
 	logFormat := app.String(cli.StringOpt{
-		Name:   "log-format",
+		Name:   "f log-format",
 		Desc:   "Log format, if set to text will use text as logging format, otherwise will use json",
 		EnvVar: "LOG_FORMAT",
 		Value:  "json",
 	})
 
 	workers := app.Int(cli.IntOpt{
-		Name:   "workers",
+		Name:   "w workers",
 		Desc:   "The number of workers to use for uploading in parallel",
 		EnvVar: "WORKERS",
 		Value:  10,
 	})
 
 	recursive := app.Bool(cli.BoolOpt{
-		Name:   "recursive",
-		Desc:   "Upload recursivelly all the files in the specified folder",
+		Name:   "r recursive",
+		Desc:   "Upload recursively all the files in the specified folder",
 		EnvVar: "RECURSIVE",
-		Value:  false,
+		Value:  true,
 	})
 
-	basedir := app.String(cli.StringOpt{
-		Name:   "basedir",
+	basedir := app.String(cli.StringArg{
+		Name:   "BASEDIR",
 		Desc:   "The base directory where to upload all the files from",
 		EnvVar: "BASEDIR",
 	})
+
 	fileExtensions := app.String(cli.StringOpt{
-		Name:   "file-extensions",
+		Name:   "e file-extensions",
 		Desc:   "The list of file extensions to process",
 		EnvVar: "FILE_EXTENSIONS",
 		Value:  "pdf,csv",
