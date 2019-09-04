@@ -41,6 +41,12 @@ func (f *fileSaverWorker) sendFileToArchiveAPI(ctx context.Context, fileName str
 	if err != nil {
 		return errors.Wrapf(err, "failed to open file %s", fileName)
 	}
+	defer func() {
+		if err := file.Close(); err != nil {
+			logrus.WithError(err).Errorf("failed closing file %s", fileName)
+		}
+	}()
+
 	bytes, err := ioutil.ReadAll(file)
 	if err != nil {
 		return errors.Wrapf(err, "failed reading bytes for file %s", fileName)
