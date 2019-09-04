@@ -2,13 +2,13 @@ package ffaac
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/pkg/errors"
 	"github.com/utilitywarehouse/finance-fulfilment-archive-api-cli/internal/pb/bfaa"
 )
 
@@ -39,7 +39,7 @@ func (f *fileSaverWorker) sendFileToArchiveAPI(ctx context.Context, fileName str
 	logrus.Infof("Processing file %s", fileName)
 	file, err := os.Open(filepath.Join(f.basedir, fileName))
 	if err != nil {
-		return errors.Wrapf(err, "failed to open file %s", fileName)
+		return fmt.Errorf("failed to open file %s: %w", fileName, err)
 	}
 	defer func() {
 		if err := file.Close(); err != nil {
@@ -49,7 +49,7 @@ func (f *fileSaverWorker) sendFileToArchiveAPI(ctx context.Context, fileName str
 
 	bytes, err := ioutil.ReadAll(file)
 	if err != nil {
-		return errors.Wrapf(err, "failed reading bytes for file %s", fileName)
+		return fmt.Errorf("failed reading bytes for file %s: %w", fileName, err)
 	}
 
 	_, err = f.faaClient.SaveBillFulfilmentArchive(ctx, &bfaa.SaveBillFulfilmentArchiveRequest{
@@ -57,7 +57,7 @@ func (f *fileSaverWorker) sendFileToArchiveAPI(ctx context.Context, fileName str
 		Archive: &bfaa.BillFulfilmentArchive{Data: bytes},
 	})
 	if err != nil {
-		return errors.Wrapf(err, "failed calling the fulfilment archive api for file %s", fileName)
+		return fmt.Errorf("failed calling the fulfilment archive api for file %s: %w", fileName, err)
 	}
 	return nil
 }
