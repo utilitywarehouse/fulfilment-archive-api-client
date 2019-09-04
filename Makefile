@@ -41,7 +41,7 @@ update_packages:
 
 
 $(LINTER):
-	go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
+	GO111MODULE=off go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
 
 .PHONY: lint
 lint: $(LINTER)
