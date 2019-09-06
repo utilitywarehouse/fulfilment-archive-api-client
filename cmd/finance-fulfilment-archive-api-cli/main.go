@@ -21,6 +21,8 @@ import (
 	"syscall"
 )
 
+var version string // populated at compile time
+
 const (
 	appName = "finance-fulfilment-archive-api-cli"
 	appDesc = "This application is used to upload items to finance-fulfilment-archive"
@@ -101,6 +103,8 @@ func main() {
 		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
 		doneCh := make(chan bool)
+
+		log.Infof("finance-fulfilment-archive-api-cli version: %s", version)
 
 		filesProcessor := ffaac.NewFileProcessor(faaClient, *basedir, *recursive, *workers, strings.Split(*fileExtensions, ","))
 		go func() {
