@@ -8,9 +8,21 @@ jobs:
       - checkout
       - run: mv /go/src/github.com/utilitywarehouse/app /go/src/github.com/utilitywarehouse/$CIRCLE_PROJECT_REPONAME
       - run: cd ../$CIRCLE_PROJECT_REPONAME && make all
-
+  release:
+    docker:
+      - image: circleci/golang:1
+    working_directory: /go/src/github.com/utilitywarehouse/app
+    steps:
+      - checkout
+      - run: curl -sL https://git.io/goreleaser | bash
 workflows:
   version: 2
   development:
     jobs:
       - build
+      - release:
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /v[0-9]+(\.[0-9]+)*(-.*)*/
