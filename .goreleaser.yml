@@ -26,6 +26,10 @@ archives:
   files:
     - none*
   wrap_in_directory: false
+release:
+  github:
+    owner: utilitywarehouse
+    name: finance-fulfilment-archive-api-cli
 
 checksum:
   name_template: 'checksums.txt'
