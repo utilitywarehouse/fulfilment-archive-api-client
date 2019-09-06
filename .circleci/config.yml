@@ -21,7 +21,6 @@ workflows:
     jobs:
       - build
       - release:
-          context: billing
           filters:
             branches:
               ignore: /.*/
