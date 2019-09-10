@@ -11,7 +11,7 @@ GIT_HASH := $(CIRCLE_SHA1)
 ifeq ($(GIT_HASH),)
   GIT_HASH := $(shell git rev-parse HEAD)
 endif
-LINKFLAGS :=-s -X main.gitHash=$(GIT_HASH) -extldflags "-static"
+LINKFLAGS :=-s -X main.version=$(GIT_HASH) -extldflags "-static"
 TESTFLAGS := -v -cover
 LINT_EXCLUDE=pb.go|pb.gw.go
 LINT_FLAGS :=--disable-all --enable=vet --enable=vetshadow --enable=golint --enable=ineffassign --enable=deadcode  --enable=gosimple --enable=goconst --enable=gofmt --deadline=120s

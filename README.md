@@ -48,3 +48,9 @@ make all
 ```bash
 make test
 ```
+
+## Releasing
+This project uses [goreleaser](https://goreleaser.com/) for managing releases.
+
+All you need to do is create a tag on the repo with the desired version in the format ```vx.y.z```. 
+The continuous integration pipeline will kick in and create the full Github release. 
