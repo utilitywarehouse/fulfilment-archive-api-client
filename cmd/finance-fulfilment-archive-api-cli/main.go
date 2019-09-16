@@ -142,6 +142,7 @@ func configureLogger(level, format string) {
 	if format == "json" {
 		log.SetFormatter(&log.JSONFormatter{})
 	}
+	log.SetOutput(os.Stdout)
 }
 
 func initialiseGRPCClientConnection(ctx context.Context, grpcClientAddress *string, grpcLoadBalancer *string) *grpc.ClientConn {
