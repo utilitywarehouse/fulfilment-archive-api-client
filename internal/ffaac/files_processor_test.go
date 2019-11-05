@@ -8,18 +8,23 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
-	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc"
 
 	"github.com/golang/mock/gomock"
+	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/utilitywarehouse/finance-fulfilment-archive-api-cli/internal/ffaac"
 	"github.com/utilitywarehouse/finance-fulfilment-archive-api-cli/internal/ffaac/mocks"
 	"github.com/utilitywarehouse/finance-fulfilment-archive-api-cli/internal/pb/bfaa"
 )
 
 //go:generate mockgen -package=mocks -destination=mocks/bill_fulfilment_archive_api.go github.com/utilitywarehouse/finance-fulfilment-archive-api-cli/internal/pb/bfaa BillFulfilmentArchiveAPIClient
+//go:generate mockgen -package=mocks -destination=mocks/files_finder.go github.com/utilitywarehouse/finance-fulfilment-archive-api-cli/internal/ffaac FilesFinder
 
 const workers = 10
 
@@ -27,11 +32,12 @@ type processorTestInstances struct {
 	ctrl                 *gomock.Controller
 	mockArchiveAPIClient *mocks.MockBillFulfilmentArchiveAPIClient
 
-	basedir   string
-	processor *ffaac.FilesProcessor
+	basedir         string
+	processor       *ffaac.FilesProcessor
+	mockFilesFinder *mocks.MockFilesFinder
 }
 
-func initProcessorMocks(t *testing.T, recursive bool, fileExtensions ...string) processorTestInstances {
+func initProcessorWithRealFinder(t *testing.T, recursive bool, fileExtensions ...string) processorTestInstances {
 	ctrl := gomock.NewController(t)
 	ti := processorTestInstances{
 		ctrl:                 ctrl,
@@ -47,6 +53,23 @@ func initProcessorMocks(t *testing.T, recursive bool, fileExtensions ...string) 
 	return ti
 }
 
+func initProcessorWithMockFinder(t *testing.T) processorTestInstances {
+	ctrl := gomock.NewController(t)
+	ti := processorTestInstances{
+		ctrl:                 ctrl,
+		mockArchiveAPIClient: mocks.NewMockBillFulfilmentArchiveAPIClient(ctrl),
+		mockFilesFinder:      mocks.NewMockFilesFinder(ctrl),
+	}
+
+	rootPath, err := ioutil.TempDir("", "processor-test")
+	require.NoError(t, err)
+
+	ti.basedir = rootPath
+
+	ti.processor = ffaac.NewFileProcessor(ti.mockArchiveAPIClient, ti.basedir, workers, ti.mockFilesFinder)
+	return ti
+}
+
 func (ti *processorTestInstances) finish() {
 	ti.ctrl.Finish()
 	if err := os.RemoveAll(ti.basedir); err != nil {
@@ -55,7 +78,7 @@ func (ti *processorTestInstances) finish() {
 }
 
 func TestProcessEmptyDir(t *testing.T) {
-	ti := initProcessorMocks(t, true)
+	ti := initProcessorWithRealFinder(t, true)
 	defer ti.finish()
 
 	ti.mockArchiveAPIClient.EXPECT().SaveBillFulfilmentArchive(gomock.Any(), gomock.Any()).Times(0)
@@ -64,7 +87,7 @@ func TestProcessEmptyDir(t *testing.T) {
 }
 
 func TestProcessSimpleDir(t *testing.T) {
-	ti := initProcessorMocks(t, true, "pdf")
+	ti := initProcessorWithRealFinder(t, true, "pdf")
 	defer ti.finish()
 
 	fileNames := []string{"one.pdf", "two.pdf"}
@@ -79,24 +102,48 @@ func TestProcessSimpleDir(t *testing.T) {
 }
 
 func TestProcessStopOnError(t *testing.T) {
-	ti := initProcessorMocks(t, true, "pdf", "csv")
+	ti := initProcessorWithMockFinder(t)
 	defer ti.finish()
 
 	fileNames := []string{"one.pdf", "two.pdf", "three.csv"}
 	ti.createTestFiles(t, fileNames...)
 
+	errorSent := make(chan struct{})
 	err := errors.New("dummy error")
-	//	error on the first file. The other two should not be processed any more
-	ti.mockArchiveAPIClient.EXPECT().SaveBillFulfilmentArchive(gomock.Any(), getExpectedSaveRequest("one.pdf")).Return(nil, err).Times(1)
-	ti.mockArchiveAPIClient.EXPECT().SaveBillFulfilmentArchive(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+	ti.mockFilesFinder.EXPECT().Run(gomock.Any(), gomock.Any()).Times(1).DoAndReturn(
+		func(ctx context.Context, filesCh chan<- string) {
+			filesCh <- "one.pdf"
+			/*	block until the error is triggered by SaveBillFulfilmentArchive, and wait more so that the error is processed */
+			<-errorSent
+			time.Sleep(500 * time.Millisecond)
+			/*	more sends should not trigger other saves as the workers should be done by now */
+			filesCh <- "two.pdf"
+			filesCh <- "three.pdf"
+			// wait more so that those sends should be processed
+			time.Sleep(500 * time.Millisecond)
+			close(filesCh)
+		})
+
+	saveCalled := 0
+	ti.mockArchiveAPIClient.EXPECT().SaveBillFulfilmentArchive(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(
+		func(ctx context.Context, in *bfaa.SaveBillFulfilmentArchiveRequest, opts ...grpc.CallOption) (*empty.Empty, error) {
+			saveCalled++
+			if saveCalled == 1 { // only on first call return error
+				close(errorSent)
+				return nil, err
+			}
+
+			return nil, nil
+		})
 
 	expErr := ti.processor.ProcessFiles(context.Background())
 	assert.Error(t, expErr)
 	assert.True(t, errors.Is(expErr, err))
+	assert.Equal(t, 1, saveCalled)
 }
 
 func TestProcessWithChildDirsRecursive(t *testing.T) {
-	ti := initProcessorMocks(t, true, "pdf")
+	ti := initProcessorWithRealFinder(t, true, "pdf")
 	defer ti.finish()
 
 	fileNames := []string{"one.pdf", "two.pdf",
@@ -114,7 +161,7 @@ func TestProcessWithChildDirsRecursive(t *testing.T) {
 }
 
 func TestProcessManyFilesRecursive(t *testing.T) {
-	ti := initProcessorMocks(t, true, "pdf")
+	ti := initProcessorWithRealFinder(t, true, "pdf")
 	defer ti.finish()
 
 	var allFileNames []string
@@ -143,7 +190,7 @@ func TestProcessManyFilesRecursive(t *testing.T) {
 }
 
 func TestProcessWithChildDirsNonRecursive(t *testing.T) {
-	ti := initProcessorMocks(t, false, "pdf")
+	ti := initProcessorWithRealFinder(t, false, "pdf")
 	defer ti.finish()
 
 	baseFileNames := []string{"one.pdf", "two.pdf"}
@@ -163,7 +210,7 @@ func TestProcessWithChildDirsNonRecursive(t *testing.T) {
 }
 
 func TestProcessSkipNotIncludedFiles(t *testing.T) {
-	ti := initProcessorMocks(t, true, "csv")
+	ti := initProcessorWithRealFinder(t, true, "csv")
 	defer ti.finish()
 
 	includedFiles := []string{"one.csv", filepath.Join("fold1", "thee.csv")}
