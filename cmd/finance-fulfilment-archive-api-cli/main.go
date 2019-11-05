@@ -105,8 +105,11 @@ func main() {
 		doneCh := make(chan bool)
 
 		log.Infof("finance-fulfilment-archive-api-cli version: %s", version)
+		log.Infof("Starting processing files in %s. Recursive: %v. Looking for files with extensions: %v", *basedir, *recursive, *fileExtensions)
 
-		filesProcessor := ffaac.NewFileProcessor(faaClient, *basedir, *recursive, *workers, strings.Split(*fileExtensions, ","))
+		filesFinder := ffaac.NewFilesFinder(*basedir, *recursive, strings.Split(*fileExtensions, ","))
+		filesProcessor := ffaac.NewFileProcessor(faaClient, *basedir, *workers, filesFinder)
+
 		go func() {
 			filesProcessor.ProcessFiles(ctx)
 			doneCh <- true

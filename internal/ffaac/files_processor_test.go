@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/golang/mock/gomock"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
@@ -40,7 +42,8 @@ func initProcessorMocks(t *testing.T, recursive bool, fileExtensions ...string) 
 
 	ti.basedir = rootPath
 
-	ti.processor = ffaac.NewFileProcessor(ti.mockArchiveAPIClient, ti.basedir, recursive, workers, fileExtensions)
+	filesFinder := ffaac.NewFilesFinder(ti.basedir, recursive, fileExtensions)
+	ti.processor = ffaac.NewFileProcessor(ti.mockArchiveAPIClient, ti.basedir, workers, filesFinder)
 	return ti
 }
 
@@ -56,7 +59,8 @@ func TestProcessEmptyDir(t *testing.T) {
 	defer ti.finish()
 
 	ti.mockArchiveAPIClient.EXPECT().SaveBillFulfilmentArchive(gomock.Any(), gomock.Any()).Times(0)
-	ti.processor.ProcessFiles(context.Background())
+	err := ti.processor.ProcessFiles(context.Background())
+	assert.NoError(t, err)
 }
 
 func TestProcessSimpleDir(t *testing.T) {
@@ -70,10 +74,11 @@ func TestProcessSimpleDir(t *testing.T) {
 		ti.mockArchiveAPIClient.EXPECT().SaveBillFulfilmentArchive(gomock.Any(), getExpectedSaveRequest(fileName)).Return(nil, nil).Times(1)
 	}
 
-	ti.processor.ProcessFiles(context.Background())
+	err := ti.processor.ProcessFiles(context.Background())
+	assert.NoError(t, err)
 }
 
-func TestProcessContinueOnError(t *testing.T) {
+func TestProcessStopOnError(t *testing.T) {
 	ti := initProcessorMocks(t, true, "pdf", "csv")
 	defer ti.finish()
 
@@ -81,13 +86,13 @@ func TestProcessContinueOnError(t *testing.T) {
 	ti.createTestFiles(t, fileNames...)
 
 	err := errors.New("dummy error")
-	//	error on the first two files
+	//	error on the first file. The other two should not be processed any more
 	ti.mockArchiveAPIClient.EXPECT().SaveBillFulfilmentArchive(gomock.Any(), getExpectedSaveRequest("one.pdf")).Return(nil, err).Times(1)
-	ti.mockArchiveAPIClient.EXPECT().SaveBillFulfilmentArchive(gomock.Any(), getExpectedSaveRequest("two.pdf")).Return(nil, err).Times(1)
+	ti.mockArchiveAPIClient.EXPECT().SaveBillFulfilmentArchive(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 
-	ti.mockArchiveAPIClient.EXPECT().SaveBillFulfilmentArchive(gomock.Any(), getExpectedSaveRequest("three.csv")).Return(nil, nil).Times(1)
-
-	ti.processor.ProcessFiles(context.Background())
+	expErr := ti.processor.ProcessFiles(context.Background())
+	assert.Error(t, expErr)
+	assert.True(t, errors.Is(expErr, err))
 }
 
 func TestProcessWithChildDirsRecursive(t *testing.T) {
@@ -103,7 +108,9 @@ func TestProcessWithChildDirsRecursive(t *testing.T) {
 		ti.mockArchiveAPIClient.EXPECT().SaveBillFulfilmentArchive(gomock.Any(), getExpectedSaveRequest(fileName)).Return(nil, nil).Times(1)
 	}
 
-	ti.processor.ProcessFiles(context.Background())
+	err := ti.processor.ProcessFiles(context.Background())
+	assert.NoError(t, err)
+
 }
 
 func TestProcessManyFilesRecursive(t *testing.T) {
@@ -130,7 +137,9 @@ func TestProcessManyFilesRecursive(t *testing.T) {
 		ti.mockArchiveAPIClient.EXPECT().SaveBillFulfilmentArchive(gomock.Any(), getExpectedSaveRequest(fileName)).Return(nil, nil).Times(1)
 	}
 
-	ti.processor.ProcessFiles(context.Background())
+	err := ti.processor.ProcessFiles(context.Background())
+	assert.NoError(t, err)
+
 }
 
 func TestProcessWithChildDirsNonRecursive(t *testing.T) {
@@ -148,7 +157,9 @@ func TestProcessWithChildDirsNonRecursive(t *testing.T) {
 		ti.mockArchiveAPIClient.EXPECT().SaveBillFulfilmentArchive(gomock.Any(), getExpectedSaveRequest(fileName)).Return(nil, nil).Times(1)
 	}
 
-	ti.processor.ProcessFiles(context.Background())
+	err := ti.processor.ProcessFiles(context.Background())
+	assert.NoError(t, err)
+
 }
 
 func TestProcessSkipNotIncludedFiles(t *testing.T) {
@@ -167,7 +178,9 @@ func TestProcessSkipNotIncludedFiles(t *testing.T) {
 		ti.mockArchiveAPIClient.EXPECT().SaveBillFulfilmentArchive(gomock.Any(), getExpectedSaveRequest(fileName)).Return(nil, nil).Times(1)
 	}
 
-	ti.processor.ProcessFiles(context.Background())
+	err := ti.processor.ProcessFiles(context.Background())
+	assert.NoError(t, err)
+
 }
 
 func getExpectedSaveRequest(fileName string) *bfaa.SaveBillFulfilmentArchiveRequest {
