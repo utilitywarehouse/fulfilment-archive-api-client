@@ -18,18 +18,18 @@ type fileSaverWorker struct {
 	basedir   string
 }
 
-func (f *fileSaverWorker) Run(ctx context.Context) {
+func (f *fileSaverWorker) Run(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			return
+			return nil
 		case fn, ok := <-f.fileChan:
 			if ok {
 				if err := f.sendFileToArchiveAPI(ctx, fn); err != nil {
-					logrus.Error(err)
+					return err
 				}
 			} else {
-				return
+				return nil
 			}
 		}
 	}

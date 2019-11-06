@@ -24,8 +24,9 @@ import (
 var version string // populated at compile time
 
 const (
-	appName = "finance-fulfilment-archive-api-cli"
-	appDesc = "This application is used to upload items to finance-fulfilment-archive"
+	appName           = "finance-fulfilment-archive-api-cli"
+	appDesc           = "This application is used to upload items to finance-fulfilment-archive"
+	exitCodeWithError = 1
 )
 
 func main() {
@@ -103,21 +104,33 @@ func main() {
 		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
 		doneCh := make(chan bool)
+		defer close(doneCh)
 
 		log.Infof("finance-fulfilment-archive-api-cli version: %s", version)
+		log.Infof("Starting processing files in %s. Recursive: %v. Looking for files with extensions: %v", *basedir, *recursive, *fileExtensions)
 
-		filesProcessor := ffaac.NewFileProcessor(faaClient, *basedir, *recursive, *workers, strings.Split(*fileExtensions, ","))
+		filesFinder := ffaac.NewFilesFinder(*basedir, *recursive, strings.Split(*fileExtensions, ","))
+		filesProcessor := ffaac.NewFileProcessor(faaClient, *basedir, *workers, filesFinder)
+
+		var procErr error
 		go func() {
-			filesProcessor.ProcessFiles(ctx)
+			procErr = filesProcessor.ProcessFiles(ctx)
 			doneCh <- true
 		}()
 
-		select {
-		case <-sigChan:
+		go func() {
+			<-sigChan
+			//	cancel the context so that all processing should stop
 			cancel()
-		case <-doneCh:
-			cancel()
-			return
+		}()
+
+		//	wait for the processor to finish
+		<-doneCh
+		close(sigChan)
+
+		if procErr != nil {
+			log.WithError(procErr).Errorf("Got error while processing the files")
+			cli.Exit(exitCodeWithError)
 		}
 	}
 
