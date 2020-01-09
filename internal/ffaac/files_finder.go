@@ -2,15 +2,14 @@ package ffaac
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"path/filepath"
 	"strings"
-
-	"github.com/sirupsen/logrus"
 )
 
 type FilesFinder interface {
-	Run(ctx context.Context, filesCh chan<- string)
+	Run(ctx context.Context, filesCh chan<- string) error
 }
 
 func NewFilesFinder(basedir string, recursive bool, fileExtensions []string,
@@ -28,17 +27,19 @@ type filesFinder struct {
 	fileExtensions []string
 }
 
-func (f *filesFinder) Run(ctx context.Context, filesCh chan<- string) {
+func (f *filesFinder) Run(ctx context.Context, filesCh chan<- string) error {
 	defer close(filesCh)
 
-	f.findRecursive(ctx, f.basedir, "", filesCh)
+	if err := f.findRecursive(ctx, f.basedir, "", filesCh); err != nil {
+		return err
+	}
+	return nil
 }
 
-func (f *filesFinder) findRecursive(ctx context.Context, dir string, baseRelativeDir string, filesCh chan<- string) {
+func (f *filesFinder) findRecursive(ctx context.Context, dir string, baseRelativeDir string, filesCh chan<- string) error {
 	files, err := ioutil.ReadDir(dir)
 	if err != nil {
-		logrus.WithError(err).Errorf("Error listing files in dir %s", dir)
-		return
+		return fmt.Errorf("failed listing files in dir %s: %w", dir, err)
 	}
 
 	for _, file := range files {
@@ -46,7 +47,9 @@ func (f *filesFinder) findRecursive(ctx context.Context, dir string, baseRelativ
 		baseRelativeName := filepath.Join(baseRelativeDir, file.Name())
 		if file.IsDir() {
 			if f.recursive {
-				f.findRecursive(ctx, fullFn, baseRelativeName, filesCh)
+				if err := f.findRecursive(ctx, fullFn, baseRelativeName, filesCh); err != nil {
+					return err
+				}
 			}
 		} else {
 			if f.isFileIncluded(baseRelativeName) {
@@ -54,6 +57,7 @@ func (f *filesFinder) findRecursive(ctx context.Context, dir string, baseRelativ
 			}
 		}
 	}
+	return nil
 }
 
 func (f *filesFinder) isFileIncluded(fileName string) bool {

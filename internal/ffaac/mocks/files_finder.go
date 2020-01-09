@@ -34,9 +34,11 @@ func (m *MockFilesFinder) EXPECT() *MockFilesFinderMockRecorder {
 }
 
 // Run mocks base method
-func (m *MockFilesFinder) Run(arg0 context.Context, arg1 chan<- string) {
+func (m *MockFilesFinder) Run(arg0 context.Context, arg1 chan<- string) error {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Run", arg0, arg1)
+	ret := m.ctrl.Call(m, "Run", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
 // Run indicates an expected call of Run
