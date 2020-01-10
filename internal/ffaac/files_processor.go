@@ -32,13 +32,15 @@ func (p *FilesProcessor) ProcessFiles(parentCtx context.Context) error {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 
+	errorsCh := make(chan error, p.workers+1)
+
 	go func() {
-		p.filesFinder.Run(ctx, fileCh)
+		if err := p.filesFinder.Run(ctx, fileCh); err != nil {
+			errorsCh <- err
+		}
 		wg.Done()
 	}()
 
-	var workerErr error
-	workerErrorCh := make(chan error, p.workers)
 	wg.Add(p.workers)
 	for i := 0; i < p.workers; i++ {
 		w := &fileSaverWorker{
@@ -48,22 +50,23 @@ func (p *FilesProcessor) ProcessFiles(parentCtx context.Context) error {
 		}
 		go func() {
 			if err := w.Run(ctx); err != nil {
-				workerErrorCh <- err
+				errorsCh <- err
 			}
 			wg.Done()
 		}()
 	}
 
+	var err error
 	go func() {
 		//	this will trigger either when a first worker has error, or when the error channel is closed.
 		//	We need to cancel the context so that the workers will be stopped
-		workerErr = <-workerErrorCh
+		err = <-errorsCh
 		cancel()
 	}()
 
 	wg.Wait()
-	close(workerErrorCh)
+	close(errorsCh)
 
 	logrus.Infof("Processing ended")
-	return workerErr
+	return err
 }

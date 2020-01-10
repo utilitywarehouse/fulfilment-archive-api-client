@@ -86,6 +86,25 @@ func TestProcessEmptyDir(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestProcessNotExistingDir(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	ti := processorTestInstances{
+		ctrl:                 ctrl,
+		mockArchiveAPIClient: mocks.NewMockBillFulfilmentArchiveAPIClient(ctrl),
+	}
+
+	ti.basedir = "some-not-existing-dir"
+
+	filesFinder := ffaac.NewFilesFinder(ti.basedir, true, nil)
+	ti.processor = ffaac.NewFileProcessor(ti.mockArchiveAPIClient, ti.basedir, workers, filesFinder)
+
+	ti.mockArchiveAPIClient.EXPECT().SaveBillFulfilmentArchive(gomock.Any(), gomock.Any()).Times(0)
+	err := ti.processor.ProcessFiles(context.Background())
+	assert.Error(t, err)
+}
+
 func TestProcessSimpleDir(t *testing.T) {
 	ti := initProcessorWithRealFinder(t, true, "pdf")
 	defer ti.finish()
@@ -111,7 +130,7 @@ func TestProcessStopOnError(t *testing.T) {
 	errorSent := make(chan struct{})
 	err := errors.New("dummy error")
 	ti.mockFilesFinder.EXPECT().Run(gomock.Any(), gomock.Any()).Times(1).DoAndReturn(
-		func(ctx context.Context, filesCh chan<- string) {
+		func(ctx context.Context, filesCh chan<- string) error {
 			filesCh <- "one.pdf"
 			/*	block until the error is triggered by SaveBillFulfilmentArchive, and wait more so that the error is processed */
 			<-errorSent
@@ -122,6 +141,7 @@ func TestProcessStopOnError(t *testing.T) {
 			// wait more so that those sends should be processed
 			time.Sleep(500 * time.Millisecond)
 			close(filesCh)
+			return nil
 		})
 
 	saveCalled := 0
