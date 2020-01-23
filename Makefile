@@ -71,13 +71,14 @@ all: clean install_packages $(LINTER) lint test build
 
 UW_GITHUB := github.com/utilitywarehouse
 BFAA_SCHEMA_DIR := $(GOPATH)/src/github.com/utilitywarehouse/finance-fulfilment-archive-api/proto
-FULFILMENT_SCHEMA_DIR := $(GOPATH)/src/github.com/utilitywarehouse/finance-invoice-protobuf-model
+FULFILMENT_SCHEMA_DIR := $(GOPATH)/src/github.com/utilitywarehouse/finance-invoice-protobuf-model/fulfilment
 ENVELOPE_SCHEMA_DIR=$(GOPATH)/src/github.com/utilitywarehouse/event-envelope-proto
 BFAA_GEN_DIR := ./internal/pb/bfaa
 FULFILMENT_GENERATED_DIR := ./internal/pb/fulfilment
-PROTO_MAPPINGS := Mgoogle/protobuf/empty.proto=github.com/golang/protobuf/ptypes/empty,Mgoogle/protobuf/any.proto=github.com/gogo/protobuf/types,Mgoogle/protobuf/timestamp.proto=github.com/gogo/protobuf/types,Mgoogle/api/annotations.proto=github.com/gogo/googleapis/google/api,Mgithub.com/utilitywarehouse/finance-invoice-protobuf-model/fulfilment.proto=github.com/utilitywarehouse/finance-fulfilment-archive-api-cli/internal/pb/fulfilment
+PROTO_MAPPINGS := Mgoogle/protobuf/empty.proto=github.com/golang/protobuf/ptypes/empty,Mgoogle/protobuf/any.proto=github.com/gogo/protobuf/types,Mgoogle/protobuf/timestamp.proto=github.com/gogo/protobuf/types,Mgoogle/api/annotations.proto=github.com/gogo/googleapis/google/api,Mgithub.com/utilitywarehouse/finance-invoice-protobuf-model/fulfilment/tag.proto=github.com/utilitywarehouse/finance-fulfilment-archive-api-cli/internal/pb/fulfilment
 
 protos:
+	rm -rf ./internal/pb
 	mkdir -pv $(BFAA_GEN_DIR)
 	mkdir -pv $(FULFILMENT_GENERATED_DIR)
 
@@ -90,8 +91,7 @@ protos:
 	    --proto_path=$(FULFILMENT_SCHEMA_DIR) \
 		--proto_path=$(ENVELOPE_SCHEMA_DIR) \
 		--gogoslick_out=${PROTO_MAPPINGS}:${FULFILMENT_GENERATED_DIR} \
-		$(FULFILMENT_SCHEMA_DIR)/fulfilment.proto \
-		$(FULFILMENT_SCHEMA_DIR)/invoice.proto
+		$(FULFILMENT_SCHEMA_DIR)/tag.proto
 
 	protoc \
 		-I ${BFAA_SCHEMA_DIR} \
