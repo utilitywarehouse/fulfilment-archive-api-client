@@ -10,20 +10,20 @@ import (
 	"testing"
 	"time"
 
-	"google.golang.org/grpc"
-
 	"github.com/golang/mock/gomock"
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/utilitywarehouse/finance-fulfilment-archive-api/pkg/pb/bfaa"
+	"google.golang.org/grpc"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/utilitywarehouse/finance-fulfilment-archive-api-cli/internal/ffaac"
 	"github.com/utilitywarehouse/finance-fulfilment-archive-api-cli/internal/ffaac/mocks"
-	"github.com/utilitywarehouse/finance-fulfilment-archive-api-cli/internal/pb/bfaa"
 )
 
-//go:generate mockgen -package=mocks -destination=mocks/bill_fulfilment_archive_api.go github.com/utilitywarehouse/finance-fulfilment-archive-api-cli/internal/pb/bfaa BillFulfilmentArchiveAPIClient
+//go:generate mockgen -package=mocks -destination=mocks/bill_fulfilment_archive_api.go github.com/utilitywarehouse/finance-fulfilment-archive-api/pkg/pb/bfaa BillFulfilmentArchiveAPIClient
 //go:generate mockgen -package=mocks -destination=mocks/files_finder.go github.com/utilitywarehouse/finance-fulfilment-archive-api-cli/internal/ffaac FilesFinder
 
 const workers = 10
@@ -146,7 +146,7 @@ func TestProcessStopOnError(t *testing.T) {
 
 	saveCalled := 0
 	ti.mockArchiveAPIClient.EXPECT().SaveBillFulfilmentArchive(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(
-		func(ctx context.Context, in *bfaa.SaveBillFulfilmentArchiveRequest, opts ...grpc.CallOption) (*empty.Empty, error) {
+		func(ctx context.Context, in *bfaa.SaveBillFulfilmentArchiveRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 			saveCalled++
 			if saveCalled == 1 { // only on first call return error
 				close(errorSent)
@@ -250,11 +250,11 @@ func TestProcessSkipNotIncludedFiles(t *testing.T) {
 
 }
 
-func getExpectedSaveRequest(fileName string) *bfaa.SaveBillFulfilmentArchiveRequest {
-	return &bfaa.SaveBillFulfilmentArchiveRequest{
+func getExpectedSaveRequest(fileName string) gomock.Matcher {
+	return ProtoMatcher(&bfaa.SaveBillFulfilmentArchiveRequest{
 		Id:      fileName,
 		Archive: &bfaa.BillFulfilmentArchive{Data: []byte(fileName)},
-	}
+	})
 }
 
 func (ti *processorTestInstances) createTestFiles(t *testing.T, files ...string) {
@@ -264,7 +264,31 @@ func (ti *processorTestInstances) createTestFiles(t *testing.T, files ...string)
 		err := os.MkdirAll(fileDir, 0777)
 		require.NoError(t, err)
 
-		err = ioutil.WriteFile(fullFn, []byte(fileName), 0666)
+		err = os.WriteFile(fullFn, []byte(fileName), 0666)
 		require.NoError(t, err)
 	}
 }
+
+func ProtoMatcher(message proto.Message) gomock.Matcher {
+	return protoMatcher{x: message}
+}
+
+type protoMatcher struct {
+	x proto.Message
+}
+
+func (p protoMatcher) Matches(x interface{}) bool {
+	message, ok := x.(proto.Message)
+	if !ok {
+		return false
+	}
+	return proto.Equal(p.x, message)
+}
+
+func (p protoMatcher) String() string {
+	return fmt.Sprintf("is equal to %v (%T)", p.x, p.x)
+}
+
+var (
+	_ gomock.Matcher = protoMatcher{}
+)
