@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -43,7 +42,7 @@ func initProcessorWithRealFinder(t *testing.T, recursive bool, fileExtensions ..
 		ctrl:                 ctrl,
 		mockArchiveAPIClient: mocks.NewMockBillFulfilmentArchiveAPIClient(ctrl),
 	}
-	rootPath, err := ioutil.TempDir("", "processor-test")
+	rootPath, err := os.MkdirTemp("", "processor-test")
 	require.NoError(t, err)
 
 	ti.basedir = rootPath
@@ -61,7 +60,7 @@ func initProcessorWithMockFinder(t *testing.T) processorTestInstances {
 		mockFilesFinder:      mocks.NewMockFilesFinder(ctrl),
 	}
 
-	rootPath, err := ioutil.TempDir("", "processor-test")
+	rootPath, err := os.MkdirTemp("", "processor-test")
 	require.NoError(t, err)
 
 	ti.basedir = rootPath
