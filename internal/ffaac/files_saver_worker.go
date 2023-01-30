@@ -3,13 +3,12 @@ package ffaac
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 
 	"github.com/sirupsen/logrus"
-
-	"github.com/utilitywarehouse/finance-fulfilment-archive-api-cli/internal/pb/bfaa"
+	"github.com/utilitywarehouse/finance-fulfilment-archive-api/pkg/pb/bfaa"
 )
 
 type fileSaverWorker struct {
@@ -47,7 +46,7 @@ func (f *fileSaverWorker) sendFileToArchiveAPI(ctx context.Context, fileName str
 		}
 	}()
 
-	bytes, err := ioutil.ReadAll(file)
+	bytes, err := io.ReadAll(file)
 	if err != nil {
 		return fmt.Errorf("failed reading bytes for file %s: %w", fileName, err)
 	}

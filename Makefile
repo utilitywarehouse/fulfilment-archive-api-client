@@ -29,8 +29,6 @@ endif
 
 .DEFAULT_GOAL := all
 
-
-
 .PHONY: install_packages
 install_packages:
 	go get -t -v ./... 2>&1 | sed -e "s/[[:alnum:]]*:x-oauth-basic/redacted/"
@@ -65,38 +63,5 @@ build: $(SERVICE)
 test:
 	$(BUILDENV) go test $(TESTFLAGS) ./...
 
-
 .PHONY: all
 all: clean install_packages $(LINTER) lint test build
-
-UW_GITHUB := github.com/utilitywarehouse
-BFAA_SCHEMA_DIR := $(GOPATH)/src/github.com/utilitywarehouse/finance-fulfilment-archive-api/proto
-FULFILMENT_SCHEMA_DIR := $(GOPATH)/src/github.com/utilitywarehouse/finance-invoice-protobuf-model/fulfilment
-ENVELOPE_SCHEMA_DIR=$(GOPATH)/src/github.com/utilitywarehouse/event-envelope-proto
-BFAA_GEN_DIR := ./internal/pb/bfaa
-FULFILMENT_GENERATED_DIR := ./internal/pb/fulfilment
-PROTO_MAPPINGS := Mgoogle/protobuf/empty.proto=github.com/golang/protobuf/ptypes/empty,Mgoogle/protobuf/any.proto=github.com/gogo/protobuf/types,Mgoogle/protobuf/timestamp.proto=github.com/gogo/protobuf/types,Mgoogle/api/annotations.proto=github.com/gogo/googleapis/google/api,Mgithub.com/utilitywarehouse/finance-invoice-protobuf-model/fulfilment/tag.proto=github.com/utilitywarehouse/finance-fulfilment-archive-api-cli/internal/pb/fulfilment
-
-protos:
-	rm -rf ./internal/pb
-	mkdir -pv $(BFAA_GEN_DIR)
-	mkdir -pv $(FULFILMENT_GENERATED_DIR)
-
-	GO111MODULE=off go get github.com/gogo/protobuf/protoc-gen-gogoslick
-	GO111MODULE=off go get google.golang.org/grpc
-	GO111MODULE=off go get -u $(UW_GITHUB)/finance-invoice-protobuf-model 2>&1 | sed -e "s/[[:alnum:]]*:x-oauth-basic/redacted/"
-	GO111MODULE=off go get -u $(UW_GITHUB)/finance-fulfilment-archive-api 2>&1 | sed -e "s/[[:alnum:]]*:x-oauth-basic/redacted/"
-
-	protoc \
-	    --proto_path=$(FULFILMENT_SCHEMA_DIR) \
-		--proto_path=$(ENVELOPE_SCHEMA_DIR) \
-		--gogoslick_out=${PROTO_MAPPINGS}:${FULFILMENT_GENERATED_DIR} \
-		$(FULFILMENT_SCHEMA_DIR)/tag.proto
-
-	protoc \
-		-I ${BFAA_SCHEMA_DIR} \
-		-I ${FULFILMENT_SCHEMA_DIR} \
-		-I ${GOPATH}/src/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis \
-		-I .:${GOPATH}/src:${GOPATH}/src/github.com/gogo/protobuf/protobuf \
-		--gogoslick_out=plugins=grpc,${PROTO_MAPPINGS}:${BFAA_GEN_DIR} \
-		${BFAA_SCHEMA_DIR}/bill_fulfilment_archive_api.proto

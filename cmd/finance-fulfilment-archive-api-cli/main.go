@@ -3,22 +3,21 @@ package main
 import (
 	"context"
 	"math"
+	"os"
+	"os/signal"
+	"strings"
+	"syscall"
 	"time"
-
-	"github.com/utilitywarehouse/finance-fulfilment-archive-api-cli/internal/ffaac"
 
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	cli "github.com/jawher/mow.cli"
 	log "github.com/sirupsen/logrus"
-	"github.com/utilitywarehouse/finance-fulfilment-archive-api-cli/internal/pb/bfaa"
+	"github.com/utilitywarehouse/finance-fulfilment-archive-api/pkg/pb/bfaa"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 
-	"os"
-	"os/signal"
-	"strings"
-	"syscall"
+	"github.com/utilitywarehouse/finance-fulfilment-archive-api-cli/internal/ffaac"
 )
 
 var version string // populated at compile time
@@ -173,9 +172,6 @@ func initialiseGRPCClientConnection(ctx context.Context, grpcClientAddress *stri
 				grpc_retry.WithCodes(codes.Unknown, codes.DeadlineExceeded, codes.Internal, codes.Unavailable),
 			}...,
 		)),
-	}
-	if grpcLoadBalancer != nil {
-		opts = append(opts, grpc.WithBalancerName(*grpcLoadBalancer))
 	}
 
 	grpcClientConn, err := grpc.DialContext(ctx, *grpcClientAddress, opts...)

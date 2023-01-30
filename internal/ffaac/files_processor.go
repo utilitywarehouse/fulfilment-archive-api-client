@@ -2,10 +2,10 @@ package ffaac
 
 import (
 	"context"
-	"sync"
 
 	"github.com/sirupsen/logrus"
-	"github.com/utilitywarehouse/finance-fulfilment-archive-api-cli/internal/pb/bfaa"
+	"github.com/utilitywarehouse/finance-fulfilment-archive-api/pkg/pb/bfaa"
+	"golang.org/x/sync/errgroup"
 )
 
 type FilesProcessor struct {
@@ -27,46 +27,27 @@ func NewFileProcessor(faaClient bfaa.BillFulfilmentArchiveAPIClient, basedir str
 func (p *FilesProcessor) ProcessFiles(parentCtx context.Context) error {
 	fileCh := make(chan string, 100)
 
-	ctx, cancel := context.WithCancel(parentCtx)
+	wg, ctx := errgroup.WithContext(parentCtx)
 
-	wg := sync.WaitGroup{}
-	wg.Add(1)
+	wg.Go(func() error {
+		return p.filesFinder.Run(ctx, fileCh)
+	})
 
-	errorsCh := make(chan error, p.workers+1)
-
-	go func() {
-		if err := p.filesFinder.Run(ctx, fileCh); err != nil {
-			errorsCh <- err
-		}
-		wg.Done()
-	}()
-
-	wg.Add(p.workers)
 	for i := 0; i < p.workers; i++ {
 		w := &fileSaverWorker{
 			faaClient: p.archiveAPIClient,
 			fileChan:  fileCh,
 			basedir:   p.basedir,
 		}
-		go func() {
-			if err := w.Run(ctx); err != nil {
-				errorsCh <- err
-			}
-			wg.Done()
-		}()
+		wg.Go(func() error {
+			return w.Run(ctx)
+		})
 	}
 
-	var err error
-	go func() {
-		//	this will trigger either when a first worker has error, or when the error channel is closed.
-		//	We need to cancel the context so that the workers will be stopped
-		err = <-errorsCh
-		cancel()
-	}()
-
-	wg.Wait()
-	close(errorsCh)
+	if err := wg.Wait(); err != nil {
+		return err
+	}
 
 	logrus.Infof("Processing ended")
-	return err
+	return nil
 }
