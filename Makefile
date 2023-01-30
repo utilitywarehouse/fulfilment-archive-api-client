@@ -37,7 +37,6 @@ install_packages:
 update_packages:
 	go get -u -t -v ./... 2>&1 | sed -e "s/[[:alnum:]]*:x-oauth-basic/redacted/"
 
-
 $(LINTER):
 	GO111MODULE=off go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
 
