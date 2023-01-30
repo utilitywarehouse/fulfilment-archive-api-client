@@ -1,0 +1,23 @@
+name: Test
+
+on: pull_request
+
+env:
+  GITHUB_TOKEN: ${{ secrets.DEPLOY_GITHUB_TOKEN }}
+  DOCKER_ID: ${{ secrets.CUSTOMER_BILLING_DOCKER_ID }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure git for private modules
+        run: git config --global url."https://${{ secrets.DEPLOY_GITHUB_USER }}:${{ secrets.DEPLOY_GITHUB_TOKEN }}@github.com".insteadOf "https://github.com"
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Setup Go
+        uses: actions/setup-go@v3
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+      - name: Run Tests
+        run: make test
